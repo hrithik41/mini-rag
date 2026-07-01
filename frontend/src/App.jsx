@@ -1,122 +1,102 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useRef, useEffect } from 'react';
+import { Header } from './components/layout/header';
+import { MessageBubble } from './components/chat/messageBubble';
+import { ChatForm } from './components/chat/chatForm';
+
+const API_URL = "http://localhost:5001/api/documents"; 
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [messages, setMessages] = useState([
+    { role: 'bot', text: 'Hello! Please upload a PDF or TXT document to begin chatting.' }
+  ]);
+  const [input, setInput] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDocumentReady, setIsDocumentReady] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const chatContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_URL}/`, { method: 'POST', body: formData });
+      const data = await response.json();
+      
+      if (response.ok) {
+        setIsDocumentReady(true);
+        setMessages(prev => [...prev, { role: 'bot', text: `Awesome! "${file.name}" is ready. What would you like to know about it?` }]);
+      } else alert("Error: " + data.error);
+    } catch (err) {
+      alert("Failed to connect to the backend.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || !isDocumentReady) return;
+
+    const userMsg = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setIsTyping(true);
+
+    try {
+      const response = await fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMsg })
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessages(prev => [...prev, { role: 'bot', text: data.answer, citations: data.contextUsed }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'bot', text: "Error: " + data.error }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'bot', text: "Network error." }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-container">
+      <Header 
+        isDocumentReady={isDocumentReady} 
+        isUploading={isUploading} 
+        onFileUpload={handleFileUpload} 
+      />
 
-      <div className="ticks"></div>
+      <div className="chat-container" ref={chatContainerRef}>
+        {messages.map((msg, idx) => (
+          <MessageBubble key={idx} message={msg} />
+        ))}
+        {isTyping && <MessageBubble message={{ role: 'bot', text: 'Thinking...' }} />}
+      </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <ChatForm 
+        input={input} 
+        setInput={setInput} 
+        onSubmit={handleSendMessage} 
+        isDocumentReady={isDocumentReady} 
+        isTyping={isTyping} 
+      />
+    </div>
+  );
 }
 
-export default App
+export default App;
