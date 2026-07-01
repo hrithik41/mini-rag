@@ -14,6 +14,7 @@ function App() {
   const [isDocumentReady, setIsDocumentReady] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const chatContainerRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -70,6 +71,9 @@ function App() {
       setMessages(prev => [...prev, { role: 'bot', text: "Network error." }]);
     } finally {
       setIsTyping(false);
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.focus();
+      }, 50);
     }
   };
 
@@ -94,6 +98,7 @@ function App() {
         onSubmit={handleSendMessage} 
         isDocumentReady={isDocumentReady} 
         isTyping={isTyping} 
+        inputRef={inputRef}
       />
     </div>
   );
