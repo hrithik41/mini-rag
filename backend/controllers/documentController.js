@@ -111,9 +111,11 @@ export const chatWithDocument = async (req, res) => {
         const context = searchResults.map(doc => doc.text).join("\n\n");
 
         const prompt = `
-            You are a helpful assistant. Use the following pieces of retrieved context to answer the question. 
-            If you don't know the answer based on the context, just say that you don't know. 
-            Do NOT use outside knowledge.
+            You are a friendly and helpful assistant. 
+            For general greetings or conversational questions (like "hello", "how are you"), respond politely like a normal human.
+            However, for ANY factual questions, you MUST use ONLY the following retrieved context to answer.
+            If the context does not contain the factual answer, explicitly say that you don't have that information in the uploaded document.
+            Do not make up facts outside of the context.
 
             Context:
             ${context}
