@@ -43,7 +43,9 @@ export const uploadDocument = async (req, res) => {
                 documentId: savedDoc._id,
                 chunkIndex: index,
                 text: textChunk,
-                embedding: response.embeddings[index].values
+                embedding: response.embeddings[index].values,
+                pageNumber: 1,
+                tokenCount: Math.floor(textChunk.length / 4)
             });
             return newChunk.save();
         });
