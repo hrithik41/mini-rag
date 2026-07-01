@@ -1,7 +1,6 @@
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
-
 import { GoogleGenAI } from "@google/genai";
 import { Document, Chunk } from "../models/model.js";
 import { chunkText } from "../utils/chunker.js";
@@ -34,21 +33,18 @@ export const uploadDocument = async (req, res) => {
         });
         const savedDoc = await newDoc.save();
 
-        const chunkPromises = chunks.map(async (textChunk, index) => {
-            const response = await ai.models.embedContent({
-                model: 'gemini-embedding-001',
-                contents: textChunk,
-            });
+        const response = await ai.models.embedContent({
+            model: 'gemini-embedding-001',
+            contents: chunks,
+        });
 
+        const chunkPromises = chunks.map((textChunk, index) => {
             const newChunk = new Chunk({
                 documentId: savedDoc._id,
-                text: textChunk,
-                embedding: response.embeddings[0].values,
                 chunkIndex: index,
-                pageNumber: 1,
-                tokenCount: Math.floor(textChunk.length / 4)
+                text: textChunk,
+                embedding: response.embeddings[index].values
             });
-
             return newChunk.save();
         });
 
@@ -137,6 +133,11 @@ export const chatWithDocument = async (req, res) => {
 
     } catch (error) {
         console.error("Chat Error:", error);
+        if (error.status === 429) {
+            return res.status(429).json({ 
+                error: "Google AI Rate Limit Exceeded: The free tier quota has been reached. Please wait a bit or try again tomorrow!" 
+            });
+        }
         res.status(500).json({ error: "Failed to generate an answer." });
     }
 };
