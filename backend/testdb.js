@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { Document, Chunk } from "./model.js";
+import { Document, Chunk } from "./models/model.js";
 
 dotenv.config();
 
