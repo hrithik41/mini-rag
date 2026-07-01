@@ -54,11 +54,9 @@ export const uploadDocument = async (req, res) => {
 
         await Promise.all(chunkPromises);
 
-        // 5. Update Status
         savedDoc.status = "completed";
         await savedDoc.save();
 
-        // 6. RESTful Response (201 Created)
         res.status(201).json({
             message: "File successfully processed and embedded!",
             data: {
@@ -70,5 +68,73 @@ export const uploadDocument = async (req, res) => {
     } catch (error) {
         console.error("Upload Error:", error);
         res.status(500).json({ error: "Failed to process the file." });
+    }
+};
+
+export const chatWithDocument = async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query) {
+            return res.status(400).json({ error: "Query is required." });
+        }
+
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+        const queryEmbeddingResponse = await ai.models.embedContent({
+            model: 'gemini-embedding-001',
+            contents: query,
+        });
+        const queryVector = queryEmbeddingResponse.embeddings[0].values;
+
+        const searchResults = await Chunk.aggregate([
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "embedding",
+                    "queryVector": queryVector,
+                    "numCandidates": 50,
+                    "limit": 5
+                }
+            },
+            {
+                "$project": {
+                    "text": 1,
+                    "score": { "$meta": "vectorSearchScore" }
+                }
+            }
+        ]);
+
+        if (searchResults.length === 0) {
+            return res.json({ answer: "I couldn't find any relevant information in the uploaded documents to answer that." });
+        }
+
+        const context = searchResults.map(doc => doc.text).join("\n\n");
+
+        const prompt = `
+            You are a helpful assistant. Use the following pieces of retrieved context to answer the question. 
+            If you don't know the answer based on the context, just say that you don't know. 
+            Do NOT use outside knowledge.
+
+            Context:
+            ${context}
+
+            Question: ${query}
+            
+            Answer:
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        res.json({
+            answer: response.text,
+            contextUsed: searchResults
+        });
+
+    } catch (error) {
+        console.error("Chat Error:", error);
+        res.status(500).json({ error: "Failed to generate an answer." });
     }
 };
