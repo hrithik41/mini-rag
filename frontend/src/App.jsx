@@ -3,7 +3,7 @@ import { Header } from './components/layout/header';
 import { MessageBubble } from './components/chat/messageBubble';
 import { ChatForm } from './components/chat/chatForm';
 
-const API_URL = "http://localhost:5001/api/documents"; 
+const API_URL = import.meta.env.VITE_API_URL; 
 
 function App() {
   const [messages, setMessages] = useState([
